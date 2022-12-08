@@ -2,7 +2,7 @@
 const puppeteer = require("puppeteer");
 const Discord = require("discord.js");
 const sizeOf = require("image-size");
-const { webhookURL, sessionID, leaderboardLINK, timeInterval } = require("./credentials.json");
+const { webhookURL, sessionID, leaderboardLINK, timeInterval } = require("./config.json");
 
 console.log(sessionID)
 const web = new Discord.WebhookClient({ url: webhookURL });
