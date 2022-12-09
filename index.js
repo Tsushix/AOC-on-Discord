@@ -33,7 +33,7 @@ function manageData(data){
 
     let orderID = {}
 
-    try {data = JSON.parse(data.toString())} catch (error) {throw error;}
+    try {data = JSON.parse(data.toString())} catch (error) {}
     
     for (const member in data.members) orderID[data.members[member].name] = [data.members[member].local_score, data.members[member].stars]
     var score = Object.keys(orderID).map(key => [key, orderID[key]])
