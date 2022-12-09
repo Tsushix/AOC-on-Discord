@@ -2,7 +2,7 @@
 const puppeteer = require("puppeteer");
 const https = require("https");
 const Discord = require("discord.js");
-const { webhookURL, sessionID, leaderboardID, timeInterval } = require("./config.json");
+const { webhookURL, sessionID, leaderboardID, timeInterval } = require("./MYconfig.json");
 
 const web = new Discord.WebhookClient({ url: webhookURL });
 if (timeInterval < 1) return console.log("[!] Please, renseign a timeInterval highter than 1 !")
@@ -42,7 +42,7 @@ function manageData(data){
     var top = 1
     var date = new Date().getDate()
     let fields = {"top": "", "score": "", "stars": ""}
-    if(0 > new Date().getHours() < 6) date-=1
+    if(new Date().getHours() < 6 && new Date().getHours() > 0) date-=1
     score.forEach(user => {
         fields["top"]+=`**${top})**\n`
         fields["score"]+=`**${user[1][0]}**\n`
