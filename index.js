@@ -70,5 +70,5 @@ function manageData(data){
         )
     ]})
 
-    console.log("Running !");
+    console.log("Send!");
 }
