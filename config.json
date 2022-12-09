@@ -1,6 +1,6 @@
 {
     "webhookURL": "YOUR WEBHOOK URL",
-    "leaderboardLINK": "YOUR LEADERBOARD LINK",
+    "leaderboardLINK": "YOUR LEADERBOARD ID",
     "sessionID": "YOUR SESSION ID",
-    "timeInterval": 0
+    "timeInterval": 15
 }
