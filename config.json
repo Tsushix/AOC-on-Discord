@@ -1,6 +1,6 @@
 {
-    "webhookURL": "YOUR WEBHOOK URL",
-    "leaderboardLINK": "YOUR LEADERBOARD ID",
-    "sessionID": "YOUR SESSION ID",
-    "timeInterval": 15
+    "TOKEN": "MTA1MDgzNzAxOTU4NjE5OTcwMg.GCbi7D.AaJqAb4EqPsDVEjYo60Mjs7e3-FWnmabtY8Bb4",
+    "leaderboardID": "2096733",
+    "sessionID": "53616c7465645f5fc26167bff0c0f4242ba307344fa9b46b22dfc2bd9aa8843eb229c8afc5fe905f7856ad623742c447f1cad64d2e0429cafce4971f90712744",
+    "timeInterval": "automatic"
 }
