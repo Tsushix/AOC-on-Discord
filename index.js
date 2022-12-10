@@ -1,12 +1,12 @@
 
 const https = require("https");
 const Discord = require("discord.js");
-const { TOKEN } = require("./config.json");
 const { QuickDB } = require('quick.db');
+require('dotenv').config();
 const db = new QuickDB();
 
 const aoc = new Discord.Client({intents: [Discord.GatewayIntentBits.MessageContent, Discord.GatewayIntentBits.GuildMessages, Discord.GatewayIntentBits.GuildMembers, Discord.GatewayIntentBits.Guilds]});
-aoc.login(TOKEN);
+aoc.login(process.env.TOKEN);
 send = false
 
 aoc.on("ready", async () => console.log("I'm ready !"));
@@ -190,7 +190,44 @@ aoc.on("interactionCreate", async interaction => {
     }
     if(interaction.customId == "ping"){
         await interaction.reply({content: "Pong!", ephemeral: true})
-        getLeaderboard()
+        const timeInterval = await db.get("time")
+        const leaderboardID = await db.get("leaderboard")
+        const sessionID = await db.get("session")
+        const channel = await db.get("channel")
+
+        let found = false
+        interaction.guild.channels.cache.get(channel).members.forEach(member => {
+            if (member.id == aoc.user.id) found = true
+        })
+        if(!found) return await interaction.reply({content: "[!] The channel is not found ! Please, renseign a valid ID and check if the bot can access it", ephemeral: true})
+
+        if (parseInt(timeInterval) < 1 && timeInterval?.toLowerCase() != "automatic") return await interaction.reply({content: "[!] Please, renseign a time interval highter than 1 !", ephemeral: true})
+        if (isNaN(timeInterval) && timeInterval?.toLowerCase() != "automatic") return await interaction.reply({content: "[!] This keyword is uknown, please, change it with an other keyword or a number !", ephemeral: true})
+
+        let optionsSESSION = {
+            hostname: "adventofcode.com",
+            path: `/${new Date().getFullYear()}/leaderboard/self`,
+            method: "GET",
+            headers: {'Cookie': `session=${sessionID}`}
+            }
+        
+        let optionsLEADERBOARD = {
+            hostname: "adventofcode.com",
+            path: `/${new Date().getFullYear()}/leaderboard/private/${leaderboardID}.json`,
+            method: "GET",
+            headers: {'Cookie': `session=${sessionID}`}
+            }
+
+        https.get(optionsSESSION, res => res.on("data", async data => {
+            if (data?.toString().startsWith("<!DOCTYPE")) return await interaction.reply({content: "[!] The session ID is invalid !", ephemeral: true})
+
+            https.get(optionsLEADERBOARD, res => res.on("data", async data => {
+                if (data?.toString().startsWith("404")) return await interaction.reply({content: "[!] The leaderboard ID is invalid !", ephemeral: true})
+                getLeaderboard()
+            }));
+
+        }));
+
     }
 
     if(interaction.customId == "sessionidModal") await db.set("session", interaction.fields.getTextInputValue('sessionidInput'))
@@ -215,11 +252,10 @@ async function getLeaderboard(){
     const sessionID = await db.get("session")
     const channel = await db.get("channel")
 
-    if (parseInt(timeInterval) < 1 && timeInterval?.toLowerCase() != "automatic") return console.log("[!] Please, renseign a timeInterval highter than 1 !")
-    if (isNaN(timeInterval) && timeInterval?.toLowerCase() != "automatic") return console.log("[!] This keyword is uknown, please, change it with an other keyword or a number !")
-    if(timeInterval?.toLowerCase() == "automatic") var timeIntervalS = 1
-    else var timeIntervalS = timeInterval
-    var lastDATA;
+    let timeIntervalS = 0;
+    if(timeInterval?.toLowerCase() == "automatic") timeIntervalS = 1
+    else timeIntervalS = timeInterval
+    let lastDATA;
 
     const options = {
         hostname: "adventofcode.com",
@@ -228,42 +264,45 @@ async function getLeaderboard(){
         headers: {'Cookie': `session=${sessionID}`}
         }
 
+    let datas = "";
+
     https.get(options, res => {
-        res.on("data", data => manageData(data, timeInterval, channel))
+        res.on("data", chunk => datas += chunk)
+        res.on("end", () => manageData(datas, timeInterval, channel, lastDATA))
         res.on("error", err => console.log(err))
     });
 
     setInterval(() => {
+        let datas = "";
         https.get(options, res => {
-            res.on("data", data => manageData(data, timeInterval, channel))
+            res.on("data", chunk => datas += chunk)
+            res.on("end", () => manageData(datas, timeInterval, channel, lastDATA))
             res.on("error", err => console.log(err))
         });
     }, 1000*60*timeIntervalS);
 
 }
 
-async function manageData(data, timeInterval, channel){
-
-    if (data?.toString().startsWith("<!DOCTYPE")) return console.log("[!] Leaderboard was not found, change your config and try again !")
+async function manageData(data, timeInterval, channel, lastDATA){
 
     let orderID = {}
 
     data = JSON.parse(data.toString())
-    
+
     lastDATA = data
     
     for (const member in data.members) orderID[data.members[member].name] = [data.members[member].local_score, data.members[member].stars]
-    var score = Object.keys(orderID).map(key => [key, orderID[key]])
+    let score = Object.keys(orderID).map(key => [key, orderID[key]])
     score.sort((a,b) => b[1][0] - a[1][0])
 
-    var top = 1
-    var date = new Date().getDate()
+    let top = 1
+    let date = new Date().getDate()
     let otherFields = []
     if(new Date().getHours() < 6 && new Date().getHours() > 0) date-=1
     score.forEach(user => {
         if(user[0] == 'null') username="anonymous"
         else username=user[0]
-        var stars = ""
+        let stars = ""
         for (let i = 0; i < Math.floor(user[1][1]/2); i++) stars+="★"
         if (user[1][1]%2 != 0) stars+="✯"
         for (let i = 0; i < date - Math.floor(user[1][1]/2) - user[1][1]%2; i++) stars+='☆'
@@ -271,8 +310,8 @@ async function manageData(data, timeInterval, channel){
         top++
     })
 
-    var hours = new Date().getHours()
-    var minutes = new Date().getMinutes()
+    let hours = new Date().getHours()
+    let minutes = new Date().getMinutes()
 
     if (hours.toLocaleString().length < 2) hours = "0" + hours.toLocaleString()
     if (minutes.toLocaleString().length < 2) minutes = "0" + minutes.toLocaleString()
@@ -287,7 +326,4 @@ async function manageData(data, timeInterval, channel){
         .setTitle(`Leaderboard of ${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()}, at ${hours}:${minutes}`)
         .addFields(otherFields)
     ]})
-
-    if (lastDATA == data && timeInterval?.toLowerCase() == "automatic") console.log("Send!");
-    else if (timeInterval?.toLowerCase() != "automatic") console.log("Send!");
 }
