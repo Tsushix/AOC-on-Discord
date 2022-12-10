@@ -2,12 +2,12 @@
 const https = require("https");
 const Discord = require("discord.js");
 const { QuickDB } = require('quick.db');
+const cron = require('node-cron');
 require('dotenv').config();
 const db = new QuickDB();
 
 const aoc = new Discord.Client({intents: [Discord.GatewayIntentBits.MessageContent, Discord.GatewayIntentBits.GuildMessages, Discord.GatewayIntentBits.GuildMembers, Discord.GatewayIntentBits.Guilds]});
 aoc.login(process.env.TOKEN);
-send = false
 
 aoc.on("ready", async () => console.log("I'm ready !"));
 aoc.on("messageCreate", async message => {
@@ -189,7 +189,7 @@ aoc.on("interactionCreate", async interaction => {
         await interaction.showModal(row)
     }
     if(interaction.customId == "ping"){
-        await interaction.reply({content: "Pong!", ephemeral: true})
+        await interaction.reply({content: `Veuillez patienter, je reflechis...`, ephemeral: true})
         const timeInterval = await db.get("time")
         const leaderboardID = await db.get("leaderboard")
         const sessionID = await db.get("session")
@@ -199,17 +199,10 @@ aoc.on("interactionCreate", async interaction => {
         interaction.guild.channels.cache.get(channel).members.forEach(member => {
             if (member.id == aoc.user.id) found = true
         })
-        if(!found) return await interaction.reply({content: "[!] The channel is not found ! Please, renseign a valid ID and check if the bot can access it", ephemeral: true})
+        if(!found) return await interaction.editReply({content: "[!] The channel is not found ! Please, renseign a valid ID and check if the bot can access it", ephemeral: true})
 
-        if (parseInt(timeInterval) < 1 && timeInterval?.toLowerCase() != "automatic") return await interaction.reply({content: "[!] Please, renseign a time interval highter than 1 !", ephemeral: true})
-        if (isNaN(timeInterval) && timeInterval?.toLowerCase() != "automatic") return await interaction.reply({content: "[!] This keyword is uknown, please, change it with an other keyword or a number !", ephemeral: true})
-
-        let optionsSESSION = {
-            hostname: "adventofcode.com",
-            path: `/${new Date().getFullYear()}/leaderboard/self`,
-            method: "GET",
-            headers: {'Cookie': `session=${sessionID}`}
-            }
+        if (parseInt(timeInterval) < 1 && timeInterval?.toLowerCase() != "automatic") return await interaction.editReply({content: "[!] Please, renseign a time interval highter than 1 !", ephemeral: true})
+        if (isNaN(timeInterval) && timeInterval?.toLowerCase() != "automatic") return await interaction.editReply({content: "[!] This keyword is uknown, please, change it with an other keyword or a number !", ephemeral: true})
         
         let optionsLEADERBOARD = {
             hostname: "adventofcode.com",
@@ -217,12 +210,20 @@ aoc.on("interactionCreate", async interaction => {
             method: "GET",
             headers: {'Cookie': `session=${sessionID}`}
             }
+        
+        let optionsSESSION = {
+            hostname: "adventofcode.com",
+            path: `/${new Date().getFullYear()}/leaderboard/self`,
+            method: "GET",
+            headers: {'Cookie': `session=${sessionID}`}
+            }
 
         https.get(optionsSESSION, res => res.on("data", async data => {
-            if (data?.toString().startsWith("<!DOCTYPE")) return await interaction.reply({content: "[!] The session ID is invalid !", ephemeral: true})
+            if (data?.toString().includes("500 Internal Server Error")) return await interaction.editReply({content: "[!] The session ID is invalid !", ephemeral: true})
 
             https.get(optionsLEADERBOARD, res => res.on("data", async data => {
-                if (data?.toString().startsWith("404")) return await interaction.reply({content: "[!] The leaderboard ID is invalid !", ephemeral: true})
+                if (data?.toString().startsWith("404")) return await interaction.editReply({content: "[!] The leaderboard ID is invalid !", ephemeral: true})
+                await interaction.editReply({content: "Pong!", ephemeral: true})
                 getLeaderboard()
             }));
 
@@ -272,14 +273,15 @@ async function getLeaderboard(){
         res.on("error", err => console.log(err))
     });
 
-    setInterval(() => {
+    cron.schedule(`* */${timeIntervalS} * * *`, () => {
+        console.log("ok")
         let datas = "";
         https.get(options, res => {
             res.on("data", chunk => datas += chunk)
             res.on("end", () => manageData(datas, timeInterval, channel, lastDATA))
             res.on("error", err => console.log(err))
         });
-    }, 1000*60*timeIntervalS);
+    })
 
 }
 
